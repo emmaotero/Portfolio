@@ -22,7 +22,20 @@ from utils.styles import apply_custom_styles
 from pages import dashboard, portfolio, analysis, profile
 
 # Inicializar Supabase
-supabase = init_supabase()
+if 'user' in st.session_state and st.session_state.user and 'access_token' in st.session_state.user:
+    # Recrear cliente con el token del usuario
+    supabase_url = st.secrets["SUPABASE_URL"]
+    supabase = create_client(
+        supabase_url, 
+        st.secrets["SUPABASE_KEY"],
+        options={
+            "headers": {
+                "Authorization": f"Bearer {st.session_state.user['access_token']}"
+            }
+        }
+    )
+else:
+    supabase = init_supabase()
 
 # Aplicar estilos personalizados
 apply_custom_styles()
