@@ -17,28 +17,43 @@ st.set_page_config(
 )
 
 # Importar utilidades después de set_page_config
-from utils.auth import init_supabase, login_user, register_user, logout_user
+from utils.auth import login_user, register_user, logout_user
 from utils.styles import apply_custom_styles
 from pages import dashboard, portfolio, analysis, profile
 
-# Inicializar Supabase
-if 'user' in st.session_state and st.session_state.user and 'access_token' in st.session_state.user:
-    # Recrear cliente con el token del usuario
-    supabase_url = st.secrets["SUPABASE_URL"]
-    supabase = create_client(
-        supabase_url, 
-        st.secrets["SUPABASE_KEY"],
-        options={
-            "headers": {
-                "Authorization": f"Bearer {st.session_state.user['access_token']}"
-            }
-        }
-    )
-else:
-    supabase = init_supabase()
-
 # Aplicar estilos personalizados
 apply_custom_styles()
+
+def get_supabase_client():
+    """Obtener cliente de Supabase con o sin token de usuario"""
+    try:
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
+    except:
+        supabase_url = os.getenv("SUPABASE_URL", "")
+        supabase_key = os.getenv("SUPABASE_KEY", "")
+    
+    if not supabase_url or not supabase_key:
+        st.error("⚠️ Configura las credenciales de Supabase")
+        st.stop()
+    
+    # Si hay usuario logueado con token, crear cliente con ese token
+    if 'user' in st.session_state and st.session_state.user and 'access_token' in st.session_state.user:
+        return create_client(
+            supabase_url,
+            supabase_key,
+            options={
+                "headers": {
+                    "Authorization": f"Bearer {st.session_state.user['access_token']}"
+                }
+            }
+        )
+    else:
+        # Cliente sin autenticación (solo para login/registro)
+        return create_client(supabase_url, supabase_key)
+
+# Inicializar Supabase
+supabase = get_supabase_client()
 
 def main():
     """Función principal de la aplicación"""
@@ -79,7 +94,9 @@ def show_auth_page():
                 
                 if submit:
                     if email and password:
-                        user = login_user(supabase, email, password)
+                        # Usar cliente sin auth para login
+                        auth_supabase = get_supabase_client()
+                        user = login_user(auth_supabase, email, password)
                         if user:
                             st.session_state.user = user
                             st.rerun()
@@ -102,7 +119,9 @@ def show_auth_page():
                     if new_email and new_password and confirm_password:
                         if new_password == confirm_password:
                             if len(new_password) >= 6:
-                                user = register_user(supabase, new_email, new_password)
+                                # Usar cliente sin auth para registro
+                                auth_supabase = get_supabase_client()
+                                user = register_user(auth_supabase, new_email, new_password)
                                 if user:
                                     st.success("✅ Cuenta creada exitosamente! Iniciando sesión...")
                                     st.session_state.user = user
@@ -118,6 +137,10 @@ def show_auth_page():
 
 def show_app():
     """Mostrar la aplicación principal cuando el usuario está autenticado"""
+    
+    # Recrear cliente con token del usuario
+    global supabase
+    supabase = get_supabase_client()
     
     # Sidebar con navegación
     with st.sidebar:
