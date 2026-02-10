@@ -20,9 +20,32 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Obtener credenciales desde variables de entorno (configuradas en Colab)
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+def init_supabase() -> Client:
+    """
+    Inicializar cliente de Supabase
+    
+    Returns:
+        Client: Cliente de Supabase configurado
+    """
+    # Para desarrollo local, usar variables de entorno
+    # Para producción en Streamlit Cloud, usar secrets
+    try:
+        supabase_url = st.secrets["SUPABASE_URL"]
+        supabase_key = st.secrets["SUPABASE_KEY"]
+    except:
+        # Fallback para desarrollo local
+        supabase_url = os.getenv("SUPABASE_URL", "")
+        supabase_key = os.getenv("SUPABASE_KEY", "")
+    
+    if not supabase_url or not supabase_key:
+        st.error("""
+        ⚠️ **Configuración requerida**
+        
+        Por favor configura las credenciales de Supabase en Streamlit Cloud Settings → Secrets
+        """)
+        st.stop()
+    
+    return create_client(supabase_url, supabase_key)
 
 # ============================================================================
 # ESTILOS CSS
