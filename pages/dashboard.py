@@ -13,7 +13,20 @@ def show(supabase, user):
     """Mostrar dashboard principal"""
     
     st.markdown("# 📊 Dashboard")
-    st.markdown("Vista general de tu portfolio de inversiones")
+    
+    # Selector de moneda
+    col_title, col_currency = st.columns([3, 1])
+    
+    with col_title:
+        st.markdown("Vista general de tu portfolio de inversiones")
+    
+    with col_currency:
+        currency_display = st.selectbox(
+            "Moneda:",
+            ["USD", "ARS"],
+            index=0,
+            key="currency_selector"
+        )
     
     positions = get_user_positions(supabase, user['id'])
     
@@ -40,8 +53,15 @@ def show(supabase, user):
     # Calcular métricas
     metrics = calculate_portfolio_metrics(positions, current_prices)
     
+    # Convertir a ARS si es necesario
+    from utils.market_data import get_usd_ars_rate
+    usd_ars = get_usd_ars_rate()
+    
+    if currency_display == "ARS":
+        metrics = convert_metrics_to_ars(metrics, usd_ars)
+    
     # Mostrar métricas principales
-    show_main_metrics(metrics)
+    show_main_metrics(metrics, currency_display)
     
     st.markdown("---")
     
@@ -57,7 +77,7 @@ def show(supabase, user):
     st.markdown("---")
     
     # Tabla de posiciones resumida
-    show_positions_summary(metrics['positions_detail'])
+    show_positions_summary(metrics['positions_detail'], currency_display)
 
 def show_empty_state():
     """Mostrar estado vacío cuando no hay posiciones"""
@@ -67,8 +87,10 @@ def show_empty_state():
     Aún no tienes posiciones en tu portfolio. Ve a la sección **Mi Portfolio** para agregar tu primera inversión.
     """)
 
-def show_main_metrics(metrics):
+def show_main_metrics(metrics, currency="USD"):
     """Mostrar métricas principales del portfolio"""
+    
+    currency_symbol = "$" if currency == "USD" else "$"
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -76,8 +98,8 @@ def show_main_metrics(metrics):
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">Capital Invertido</div>
-            <div class="metric-value">${metrics['total_invested']:,.2f}</div>
-            <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">USD</div>
+            <div class="metric-value">{currency_symbol}{metrics['total_invested']:,.2f}</div>
+            <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">{currency}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -85,8 +107,8 @@ def show_main_metrics(metrics):
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">Valor Actual</div>
-            <div class="metric-value">${metrics['total_value']:,.2f}</div>
-            <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">USD</div>
+            <div class="metric-value">{currency_symbol}{metrics['total_value']:,.2f}</div>
+            <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">{currency}</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -97,7 +119,7 @@ def show_main_metrics(metrics):
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">Ganancia/Pérdida</div>
-            <div class="metric-value">${metrics['total_pnl']:,.2f}</div>
+            <div class="metric-value">{currency_symbol}{metrics['total_pnl']:,.2f}</div>
             <div class="metric-change {pnl_class}">{pnl_symbol} {abs(metrics['total_pnl_pct']):.2f}%</div>
         </div>
         """, unsafe_allow_html=True)
@@ -110,7 +132,7 @@ def show_main_metrics(metrics):
             <div class="metric-value">{num_positions}</div>
         </div>
         """, unsafe_allow_html=True)
-
+        
 def show_allocation_chart(positions_detail):
     """Mostrar gráfico de distribución del portfolio"""
     
@@ -129,7 +151,7 @@ def show_allocation_chart(positions_detail):
         ),
         textinfo='label+percent',
         textfont=dict(size=12, color='white'),
-        hovertemplate='<b>%{label}</b><br>Valor: $%{value:,.2f} USD<br>%{percent}<extra></extra>'
+        hovertemplate='<b>%{label}</b><br>Valor: $%{value:,.2f}<br>%{percent}<extra></extra>'
     )])
     
     fig.update_layout(
@@ -188,7 +210,7 @@ def show_performance_chart(positions_detail):
     
     st.plotly_chart(fig, use_container_width=True)
 
-def show_positions_summary(positions_detail):
+def show_positions_summary(positions_detail, currency="USD"):
     """Mostrar tabla resumida de posiciones"""
     
     st.markdown("### 💼 Resumen de Posiciones")
@@ -197,15 +219,32 @@ def show_positions_summary(positions_detail):
     
     display_df = pd.DataFrame({
         'Ticker': df['ticker'],
-        'Moneda': df['currency'],
+        'Moneda Local': df['currency'],
         'Cantidad': df['quantity'].apply(lambda x: f"{x:.4f}"),
         'Precio Compra': df.apply(lambda x: f"${x['purchase_price']:.2f} {x['currency']}", axis=1),
         'Precio Actual': df.apply(lambda x: f"${x['current_price']:.2f} {x['currency']}", axis=1),
-        'Valor (USD)': df['current_value'].apply(lambda x: f"${x:,.2f}"),
-        'P&L': df['pnl'].apply(lambda x: f"${x:,.2f}"),
+        f'Valor ({currency})': df['current_value'].apply(lambda x: f"${x:,.2f}"),
+        f'P&L ({currency})': df['pnl'].apply(lambda x: f"${x:,.2f}"),
         'P&L %': df['pnl_pct'].apply(lambda x: f"{x:.2f}%"),
         'Distribución': df['allocation'].apply(lambda x: f"{x:.1f}%")
     })
+    
+    def color_pnl(val):
+        """Colorear valores de P&L"""
+        if isinstance(val, str) and '$' in val:
+            num = float(val.replace('$', '').replace(',', ''))
+            if num < 0:
+                return 'color: #ef4444'
+            elif num > 0:
+                return 'color: #10b981'
+        return ''
+    
+    styled_df = display_df.style.applymap(
+        color_pnl, 
+        subset=[f'P&L ({currency})', 'P&L %']
+    )
+    
+    st.dataframe(styled_df, use_container_width=True, height=400)
     
     def color_pnl(val):
         """Colorear valores de P&L"""
@@ -223,3 +262,36 @@ def show_positions_summary(positions_detail):
     )
     
     st.dataframe(styled_df, use_container_width=True, height=400)
+
+def convert_metrics_to_ars(metrics: dict, usd_ars_rate: float) -> dict:
+    """
+    Convertir todas las métricas de USD a ARS
+    
+    Args:
+        metrics: Diccionario con métricas en USD
+        usd_ars_rate: Tasa de cambio USD/ARS
+        
+    Returns:
+        dict: Métricas convertidas a ARS
+    """
+    converted = metrics.copy()
+    
+    # Convertir totales
+    converted['total_invested'] = metrics['total_invested'] * usd_ars_rate
+    converted['total_value'] = metrics['total_value'] * usd_ars_rate
+    converted['total_pnl'] = metrics['total_pnl'] * usd_ars_rate
+    # El porcentaje se mantiene igual
+    
+    # Convertir detalles de cada posición
+    converted_details = []
+    for detail in metrics['positions_detail']:
+        converted_detail = detail.copy()
+        converted_detail['invested'] = detail['invested'] * usd_ars_rate
+        converted_detail['current_value'] = detail['current_value'] * usd_ars_rate
+        converted_detail['pnl'] = detail['pnl'] * usd_ars_rate
+        # pnl_pct y allocation se mantienen igual
+        converted_details.append(converted_detail)
+    
+    converted['positions_detail'] = converted_details
+    
+    return converted
