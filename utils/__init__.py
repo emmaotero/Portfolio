@@ -2,7 +2,7 @@
 Paquete de utilidades para Portfolio Manager
 """
 
-from .auth import init_supabase, login_user, register_user, logout_user
+from .auth import login_user, register_user, logout_user
 from .styles import apply_custom_styles
 from .market_data import (
     get_current_price, 
@@ -25,7 +25,6 @@ from .database import (
 )
 
 __all__ = [
-    'init_supabase',
     'login_user',
     'register_user',
     'logout_user',
