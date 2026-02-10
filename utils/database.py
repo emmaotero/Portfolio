@@ -29,18 +29,11 @@ def add_position(supabase: Client, user_id: str, ticker: str, quantity: float,
                 purchase_price: float, purchase_date: str) -> bool:
     """
     Agregar nueva posición al portfolio
-    
-    Args:
-        supabase: Cliente de Supabase
-        user_id: ID del usuario
-        ticker: Símbolo del ticker
-        quantity: Cantidad de acciones
-        purchase_price: Precio de compra
-        purchase_date: Fecha de compra
-        
-    Returns:
-        bool: True si tuvo éxito, False si falló
     """
+    
+    # DEBUG: Mostrar user_id
+    st.warning(f"🔍 DEBUG: user_id desde la app = {user_id}")
+    
     try:
         data = {
             'user_id': user_id,
