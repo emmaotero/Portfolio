@@ -6,6 +6,7 @@ from supabase import Client
 import pandas as pd
 from datetime import datetime
 import streamlit as st
+from .market_data import detect_currency, convert_to_usd
 
 def get_user_positions(supabase: Client, user_id: str) -> list:
     """
