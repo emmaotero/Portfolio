@@ -38,8 +38,16 @@ def show_positions(supabase, user):
         current_prices = {}
         for position in positions:
             ticker = position['ticker']
-            price = get_current_price(ticker)
-            current_prices[ticker] = price if price is not None else position['purchase_price']
+            price_info = get_current_price(ticker)
+            if price_info:
+                current_prices[ticker] = price_info
+            else:
+                currency = detect_currency(ticker)
+                current_prices[ticker] = {
+                    'price': position['purchase_price'],
+                    'currency': currency,
+                    'price_usd': convert_to_usd(position['purchase_price'], currency)
+                }
     
     # Calcular métricas
     metrics = calculate_portfolio_metrics(positions, current_prices)
