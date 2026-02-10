@@ -7,28 +7,23 @@ import pandas as pd
 from datetime import datetime
 import streamlit as st
 
-def add_position(supabase: Client, user_id: str, ticker: str, quantity: float, 
-                purchase_price: float, purchase_date: str) -> bool:
-    """Agregar nueva posición al portfolio"""
+def get_user_positions(supabase: Client, user_id: str) -> list:
+    """
+    Obtener todas las posiciones del usuario
     
-    # 🔍 DEBUG TEMPORAL
-    st.info(f"🔍 **DEBUG:** Intentando insertar con user_id = `{user_id}`")
-    
-    try:
-        data = {
-            'user_id': user_id,
-            'ticker': ticker.upper(),
-            'quantity': quantity,
-            'purchase_price': purchase_price,
-            'purchase_date': purchase_date,
-            'created_at': datetime.now().isoformat()
-        }
+    Args:
+        supabase: Cliente de Supabase
+        user_id: ID del usuario
         
-        supabase.table('positions').insert(data).execute()
-        return True
+    Returns:
+        list: Lista de posiciones
+    """
+    try:
+        response = supabase.table('positions').select('*').eq('user_id', user_id).execute()
+        return response.data if response.data else []
     except Exception as e:
-        st.error(f"Error agregando posición: {str(e)}")
-        return False
+        st.error(f"Error obteniendo posiciones: {str(e)}")
+        return []
 
 def add_position(supabase: Client, user_id: str, ticker: str, quantity: float, 
                 purchase_price: float, purchase_date: str) -> bool:
@@ -150,7 +145,6 @@ def update_investor_profile(supabase: Client, user_id: str, investment_horizon: 
         bool: True si tuvo éxito, False si falló
     """
     try:
-        # Verificar si existe el perfil
         existing = get_investor_profile(supabase, user_id)
         
         data = {}
@@ -165,10 +159,8 @@ def update_investor_profile(supabase: Client, user_id: str, investment_horizon: 
             data['updated_at'] = datetime.now().isoformat()
             
             if existing:
-                # Actualizar perfil existente
                 supabase.table('investor_profiles').update(data).eq('user_id', user_id).execute()
             else:
-                # Crear nuevo perfil
                 data['user_id'] = user_id
                 data['created_at'] = datetime.now().isoformat()
                 supabase.table('investor_profiles').insert(data).execute()
@@ -232,7 +224,6 @@ def calculate_portfolio_metrics(positions: list, current_prices: dict) -> dict:
     total_pnl = total_value - total_invested
     total_pnl_pct = (total_pnl / total_invested * 100) if total_invested > 0 else 0
     
-    # Calcular distribución
     for detail in positions_detail:
         detail['allocation'] = (detail['current_value'] / total_value * 100) if total_value > 0 else 0
     
