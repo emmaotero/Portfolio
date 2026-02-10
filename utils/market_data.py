@@ -8,80 +8,48 @@ import numpy as np
 from datetime import datetime, timedelta
 import streamlit as st
 
-# Tasa de cambio USD/ARS (puedes obtenerla de una API en el futuro)
 @st.cache_data(ttl=3600)
 def get_usd_ars_rate() -> float:
     """
     Obtener tasa de cambio USD a ARS
-    En el futuro puedes usar una API como exchangerate-api.com
     """
     try:
-        # Usar Yahoo Finance para obtener el tipo de cambio
         usd_ars = yf.Ticker("USDARS=X")
         data = usd_ars.history(period="1d")
         if not data.empty:
             return round(data['Close'].iloc[-1], 2)
-        # Fallback a tasa aproximada
         return 1000.0
     except:
-        # Fallback si falla la API
         return 1000.0
 
 def detect_currency(ticker: str) -> str:
     """
     Detectar la moneda de un ticker basado en su sufijo
-    
-    Args:
-        ticker: Símbolo del ticker
-        
-    Returns:
-        str: Código de moneda (USD, ARS, etc.)
     """
     ticker_upper = ticker.upper()
     
-    # Tickers argentinos
     if ticker_upper.endswith('.BA'):
         return 'ARS'
-    
-    # Tickers brasileños
     elif ticker_upper.endswith('.SA'):
         return 'BRL'
-    
-    # Tickers mexicanos
     elif ticker_upper.endswith('.MX'):
         return 'MXN'
-    
-    # Por defecto USD (acciones US, ADRs como MELI)
     else:
         return 'USD'
 
 def convert_to_usd(price: float, currency: str) -> float:
     """
     Convertir un precio a USD
-    
-    Args:
-        price: Precio en moneda original
-        currency: Código de moneda
-        
-    Returns:
-        float: Precio en USD
     """
     if currency == 'USD':
         return price
-    
     elif currency == 'ARS':
         usd_ars = get_usd_ars_rate()
         return price / usd_ars
-    
-    # Puedes agregar más monedas aquí
     elif currency == 'BRL':
-        # Aproximado - idealmente usar API
         return price / 5.0
-    
     elif currency == 'MXN':
-        # Aproximado - idealmente usar API
         return price / 17.0
-    
     else:
         return price
 
@@ -89,12 +57,6 @@ def convert_to_usd(price: float, currency: str) -> float:
 def get_current_price(ticker: str) -> dict:
     """
     Obtener precio actual de un ticker con información de moneda
-    
-    Args:
-        ticker: Símbolo del ticker (ej: AAPL, MELI, COME.BA)
-        
-    Returns:
-        dict: {'price': float, 'currency': str, 'price_usd': float} o None si hay error
     """
     try:
         stock = yf.Ticker(ticker)
@@ -120,12 +82,6 @@ def get_current_price(ticker: str) -> dict:
 def get_stock_info(ticker: str) -> dict:
     """
     Obtener información general de un ticker
-    
-    Args:
-        ticker: Símbolo del ticker
-        
-    Returns:
-        dict: Información del ticker
     """
     try:
         stock = yf.Ticker(ticker)
@@ -134,7 +90,7 @@ def get_stock_info(ticker: str) -> dict:
             'name': info.get('longName', ticker),
             'sector': info.get('sector', 'N/A'),
             'industry': info.get('industry', 'N/A'),
-            'currency': info.get('currency', 'USD')
+            'currency': detect_currency(ticker)
         }
     except Exception as e:
         print(f"Error obteniendo info de {ticker}: {str(e)}")
@@ -142,20 +98,13 @@ def get_stock_info(ticker: str) -> dict:
             'name': ticker,
             'sector': 'N/A',
             'industry': 'N/A',
-            'currency': 'USD'
+            'currency': detect_currency(ticker)
         }
 
 @st.cache_data(ttl=3600)
 def get_historical_data(ticker: str, period: str = "1y") -> pd.DataFrame:
     """
     Obtener datos históricos de un ticker
-    
-    Args:
-        ticker: Símbolo del ticker
-        period: Período de datos (1mo, 3mo, 6mo, 1y, 2y, 5y)
-        
-    Returns:
-        DataFrame: Datos históricos con OHLCV
     """
     try:
         stock = yf.Ticker(ticker)
@@ -166,16 +115,7 @@ def get_historical_data(ticker: str, period: str = "1y") -> pd.DataFrame:
         return pd.DataFrame()
 
 def calculate_rsi(data: pd.DataFrame, period: int = 14) -> pd.Series:
-    """
-    Calcular RSI (Relative Strength Index)
-    
-    Args:
-        data: DataFrame con precios
-        period: Período para el cálculo (default: 14)
-        
-    Returns:
-        Series: Valores de RSI
-    """
+    """Calcular RSI (Relative Strength Index)"""
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
@@ -186,18 +126,7 @@ def calculate_rsi(data: pd.DataFrame, period: int = 14) -> pd.Series:
     return rsi
 
 def calculate_macd(data: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple:
-    """
-    Calcular MACD (Moving Average Convergence Divergence)
-    
-    Args:
-        data: DataFrame con precios
-        fast: Período EMA rápida (default: 12)
-        slow: Período EMA lenta (default: 26)
-        signal: Período línea de señal (default: 9)
-        
-    Returns:
-        tuple: (MACD line, Signal line, Histogram)
-    """
+    """Calcular MACD"""
     exp1 = data['Close'].ewm(span=fast, adjust=False).mean()
     exp2 = data['Close'].ewm(span=slow, adjust=False).mean()
     
@@ -208,30 +137,11 @@ def calculate_macd(data: pd.DataFrame, fast: int = 12, slow: int = 26, signal: i
     return macd, signal_line, histogram
 
 def calculate_sma(data: pd.DataFrame, period: int) -> pd.Series:
-    """
-    Calcular SMA (Simple Moving Average)
-    
-    Args:
-        data: DataFrame con precios
-        period: Período para el promedio móvil
-        
-    Returns:
-        Series: Valores de SMA
-    """
+    """Calcular SMA (Simple Moving Average)"""
     return data['Close'].rolling(window=period).mean()
 
 def calculate_bollinger_bands(data: pd.DataFrame, period: int = 20, std_dev: int = 2) -> tuple:
-    """
-    Calcular Bandas de Bollinger
-    
-    Args:
-        data: DataFrame con precios
-        period: Período para el cálculo (default: 20)
-        std_dev: Desviaciones estándar (default: 2)
-        
-    Returns:
-        tuple: (Upper band, Middle band, Lower band)
-    """
+    """Calcular Bandas de Bollinger"""
     middle_band = data['Close'].rolling(window=period).mean()
     std = data['Close'].rolling(window=period).std()
     
@@ -241,30 +151,19 @@ def calculate_bollinger_bands(data: pd.DataFrame, period: int = 20, std_dev: int
     return upper_band, middle_band, lower_band
 
 def get_technical_indicators(ticker: str, period: str = "1y") -> dict:
-    """
-    Obtener todos los indicadores técnicos para un ticker
-    
-    Args:
-        ticker: Símbolo del ticker
-        period: Período de datos
-        
-    Returns:
-        dict: Diccionario con todos los indicadores
-    """
+    """Obtener todos los indicadores técnicos para un ticker"""
     try:
         data = get_historical_data(ticker, period)
         
         if data.empty:
             return None
         
-        # Calcular todos los indicadores
         rsi = calculate_rsi(data)
         macd, signal, histogram = calculate_macd(data)
         sma_50 = calculate_sma(data, 50)
         sma_200 = calculate_sma(data, 200)
         upper_bb, middle_bb, lower_bb = calculate_bollinger_bands(data)
         
-        # Obtener valores actuales
         current_price = data['Close'].iloc[-1]
         
         return {
@@ -296,15 +195,7 @@ def get_technical_indicators(ticker: str, period: str = "1y") -> dict:
         return None
 
 def interpret_rsi(rsi: float) -> dict:
-    """
-    Interpretar valor de RSI
-    
-    Args:
-        rsi: Valor de RSI
-        
-    Returns:
-        dict: Interpretación y señal
-    """
+    """Interpretar valor de RSI"""
     if rsi is None:
         return {'signal': 'neutral', 'description': 'Datos insuficientes'}
     
@@ -316,16 +207,7 @@ def interpret_rsi(rsi: float) -> dict:
         return {'signal': 'neutral', 'description': 'En rango neutral'}
 
 def interpret_macd(macd: float, signal: float) -> dict:
-    """
-    Interpretar MACD
-    
-    Args:
-        macd: Valor MACD
-        signal: Valor señal
-        
-    Returns:
-        dict: Interpretación y señal
-    """
+    """Interpretar MACD"""
     if macd is None or signal is None:
         return {'signal': 'neutral', 'description': 'Datos insuficientes'}
     
@@ -335,17 +217,7 @@ def interpret_macd(macd: float, signal: float) -> dict:
         return {'signal': 'bajista', 'description': 'Tendencia bajista'}
 
 def interpret_sma(current_price: float, sma_50: float, sma_200: float) -> dict:
-    """
-    Interpretar SMAs
-    
-    Args:
-        current_price: Precio actual
-        sma_50: SMA de 50 días
-        sma_200: SMA de 200 días
-        
-    Returns:
-        dict: Interpretación y señal
-    """
+    """Interpretar SMAs"""
     if sma_50 is None or sma_200 is None:
         return {'signal': 'neutral', 'description': 'Datos insuficientes'}
     
@@ -359,18 +231,7 @@ def interpret_sma(current_price: float, sma_50: float, sma_200: float) -> dict:
         return {'signal': 'bajista', 'description': 'Por debajo de SMA 50'}
 
 def interpret_bollinger(current_price: float, upper: float, middle: float, lower: float) -> dict:
-    """
-    Interpretar Bandas de Bollinger
-    
-    Args:
-        current_price: Precio actual
-        upper: Banda superior
-        middle: Banda media
-        lower: Banda inferior
-        
-    Returns:
-        dict: Interpretación y señal
-    """
+    """Interpretar Bandas de Bollinger"""
     if upper is None or middle is None or lower is None:
         return {'signal': 'neutral', 'description': 'Datos insuficientes'}
     
