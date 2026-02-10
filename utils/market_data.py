@@ -8,22 +8,109 @@ import numpy as np
 from datetime import datetime, timedelta
 import streamlit as st
 
-@st.cache_data(ttl=300)
-def get_current_price(ticker: str) -> float:
+# Tasa de cambio USD/ARS (puedes obtenerla de una API en el futuro)
+@st.cache_data(ttl=3600)
+def get_usd_ars_rate() -> float:
     """
-    Obtener precio actual de un ticker
+    Obtener tasa de cambio USD a ARS
+    En el futuro puedes usar una API como exchangerate-api.com
+    """
+    try:
+        # Usar Yahoo Finance para obtener el tipo de cambio
+        usd_ars = yf.Ticker("USDARS=X")
+        data = usd_ars.history(period="1d")
+        if not data.empty:
+            return round(data['Close'].iloc[-1], 2)
+        # Fallback a tasa aproximada
+        return 1000.0
+    except:
+        # Fallback si falla la API
+        return 1000.0
+
+def detect_currency(ticker: str) -> str:
+    """
+    Detectar la moneda de un ticker basado en su sufijo
     
     Args:
-        ticker: Símbolo del ticker (ej: AAPL, GOOGL)
+        ticker: Símbolo del ticker
         
     Returns:
-        float: Precio actual o None si hay error
+        str: Código de moneda (USD, ARS, etc.)
+    """
+    ticker_upper = ticker.upper()
+    
+    # Tickers argentinos
+    if ticker_upper.endswith('.BA'):
+        return 'ARS'
+    
+    # Tickers brasileños
+    elif ticker_upper.endswith('.SA'):
+        return 'BRL'
+    
+    # Tickers mexicanos
+    elif ticker_upper.endswith('.MX'):
+        return 'MXN'
+    
+    # Por defecto USD (acciones US, ADRs como MELI)
+    else:
+        return 'USD'
+
+def convert_to_usd(price: float, currency: str) -> float:
+    """
+    Convertir un precio a USD
+    
+    Args:
+        price: Precio en moneda original
+        currency: Código de moneda
+        
+    Returns:
+        float: Precio en USD
+    """
+    if currency == 'USD':
+        return price
+    
+    elif currency == 'ARS':
+        usd_ars = get_usd_ars_rate()
+        return price / usd_ars
+    
+    # Puedes agregar más monedas aquí
+    elif currency == 'BRL':
+        # Aproximado - idealmente usar API
+        return price / 5.0
+    
+    elif currency == 'MXN':
+        # Aproximado - idealmente usar API
+        return price / 17.0
+    
+    else:
+        return price
+
+@st.cache_data(ttl=300)
+def get_current_price(ticker: str) -> dict:
+    """
+    Obtener precio actual de un ticker con información de moneda
+    
+    Args:
+        ticker: Símbolo del ticker (ej: AAPL, MELI, COME.BA)
+        
+    Returns:
+        dict: {'price': float, 'currency': str, 'price_usd': float} o None si hay error
     """
     try:
         stock = yf.Ticker(ticker)
         data = stock.history(period="1d")
+        
         if not data.empty:
-            return round(data['Close'].iloc[-1], 2)
+            price = round(data['Close'].iloc[-1], 2)
+            currency = detect_currency(ticker)
+            price_usd = convert_to_usd(price, currency)
+            
+            return {
+                'price': price,
+                'currency': currency,
+                'price_usd': round(price_usd, 2),
+                'ticker': ticker
+            }
         return None
     except Exception as e:
         print(f"Error obteniendo precio de {ticker}: {str(e)}")
