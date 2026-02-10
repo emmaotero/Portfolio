@@ -7,23 +7,28 @@ import pandas as pd
 from datetime import datetime
 import streamlit as st
 
-def get_user_positions(supabase: Client, user_id: str) -> list:
-    """
-    Obtener todas las posiciones del usuario
+def add_position(supabase: Client, user_id: str, ticker: str, quantity: float, 
+                purchase_price: float, purchase_date: str) -> bool:
+    """Agregar nueva posición al portfolio"""
     
-    Args:
-        supabase: Cliente de Supabase
-        user_id: ID del usuario
-        
-    Returns:
-        list: Lista de posiciones
-    """
+    # 🔍 DEBUG TEMPORAL
+    st.info(f"🔍 **DEBUG:** Intentando insertar con user_id = `{user_id}`")
+    
     try:
-        response = supabase.table('positions').select('*').eq('user_id', user_id).execute()
-        return response.data if response.data else []
+        data = {
+            'user_id': user_id,
+            'ticker': ticker.upper(),
+            'quantity': quantity,
+            'purchase_price': purchase_price,
+            'purchase_date': purchase_date,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        supabase.table('positions').insert(data).execute()
+        return True
     except Exception as e:
-        st.error(f"Error obteniendo posiciones: {str(e)}")
-        return []
+        st.error(f"Error agregando posición: {str(e)}")
+        return False
 
 def add_position(supabase: Client, user_id: str, ticker: str, quantity: float, 
                 purchase_price: float, purchase_date: str) -> bool:
