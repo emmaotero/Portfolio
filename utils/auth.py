@@ -60,11 +60,14 @@ def login_user(supabase: Client, email: str, password: str) -> dict:
             "password": password
         })
         
-        if response.user:
+        if response.user and response.session:
+            # IMPORTANTE: Configurar el token de sesión en el cliente
+            supabase.auth.set_session(response.session.access_token, response.session.refresh_token)
+            
             return {
                 "id": response.user.id,
                 "email": response.user.email,
-                "session": response.session
+                "access_token": response.session.access_token
             }
         return None
     except Exception as e:
@@ -89,20 +92,23 @@ def register_user(supabase: Client, email: str, password: str) -> dict:
             "password": password
         })
         
-        if response.user:
+        if response.user and response.session:
+            # Configurar el token de sesión
+            supabase.auth.set_session(response.session.access_token, response.session.refresh_token)
+            
             # Crear perfil de inversor por defecto
             create_default_profile(supabase, response.user.id)
             
             return {
                 "id": response.user.id,
                 "email": response.user.email,
-                "session": response.session
+                "access_token": response.session.access_token
             }
         return None
     except Exception as e:
         st.error(f"Error al registrar usuario: {str(e)}")
         return None
-
+        
 def logout_user():
     """Cerrar sesión del usuario"""
     st.session_state.user = None
