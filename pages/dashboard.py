@@ -24,11 +24,20 @@ def show(supabase, user):
     
     # Obtener precios actuales
     with st.spinner("Actualizando precios..."):
-        current_prices = {}
-        for position in positions:
-            ticker = position['ticker']
-            price = get_current_price(ticker)
-            current_prices[ticker] = price if price is not None else position['purchase_price']
+    current_prices = {}
+    for position in positions:
+        ticker = position['ticker']
+        price_info = get_current_price(ticker)
+        if price_info:
+            current_prices[ticker] = price_info
+        else:
+            # Fallback
+            currency = detect_currency(ticker)
+            current_prices[ticker] = {
+                'price': position['purchase_price'],
+                'currency': currency,
+                'price_usd': convert_to_usd(position['purchase_price'], currency)
+            }
     
     # Calcular métricas
     metrics = calculate_portfolio_metrics(positions, current_prices)
@@ -193,14 +202,16 @@ def show_positions_summary(positions_detail):
     
     # Formatear columnas para mostrar
     display_df = pd.DataFrame({
-        'Ticker': df['ticker'],
-        'Cantidad': df['quantity'].apply(lambda x: f"{x:.4f}"),
-        'Precio Compra': df['purchase_price'].apply(lambda x: f"${x:.2f}"),
-        'Precio Actual': df['current_price'].apply(lambda x: f"${x:.2f}"),
-        'Valor Actual': df['current_value'].apply(lambda x: f"${x:,.2f}"),
-        'P&L': df['pnl'].apply(lambda x: f"${x:,.2f}"),
-        'P&L %': df['pnl_pct'].apply(lambda x: f"{x:.2f}%"),
-        'Distribución': df['allocation'].apply(lambda x: f"{x:.1f}%")
+    'Ticker': df['ticker'],
+    'Moneda': df['currency'],
+    'Cantidad': df['quantity'].apply(lambda x: f"{x:.4f}"),
+    'Precio Compra': df.apply(lambda x: f"${x['purchase_price']:.2f} {x['currency']}", axis=1),
+    'Precio Actual': df.apply(lambda x: f"${x['current_price']:.2f} {x['currency']}", axis=1),
+    'Valor (USD)': df['current_value'].apply(lambda x: f"${x:,.2f}"),
+    'P&L': df['pnl'].apply(lambda x: f"${x:,.2f}"),
+    'P&L %': df['pnl_pct'].apply(lambda x: f"{x:.2f}%"),
+    'Distribución': df['allocation'].apply(lambda x: f"{x:.1f}%")
+})
     })
     
     # Aplicar estilo
