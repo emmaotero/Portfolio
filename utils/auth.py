@@ -43,17 +43,7 @@ def init_supabase() -> Client:
     return create_client(supabase_url, supabase_key)
 
 def login_user(supabase: Client, email: str, password: str) -> dict:
-    """
-    Iniciar sesión de usuario
-    
-    Args:
-        supabase: Cliente de Supabase
-        email: Email del usuario
-        password: Contraseña
-        
-    Returns:
-        dict: Datos del usuario si tiene éxito, None si falla
-    """
+    """Iniciar sesión de usuario"""
     try:
         response = supabase.auth.sign_in_with_password({
             "email": email,
@@ -61,13 +51,11 @@ def login_user(supabase: Client, email: str, password: str) -> dict:
         })
         
         if response.user and response.session:
-            # IMPORTANTE: Configurar el token de sesión en el cliente
-            supabase.auth.set_session(response.session.access_token, response.session.refresh_token)
-            
             return {
                 "id": response.user.id,
                 "email": response.user.email,
-                "access_token": response.session.access_token
+                "access_token": response.session.access_token,
+                "refresh_token": response.session.refresh_token
             }
         return None
     except Exception as e:
@@ -75,17 +63,7 @@ def login_user(supabase: Client, email: str, password: str) -> dict:
         return None
 
 def register_user(supabase: Client, email: str, password: str) -> dict:
-    """
-    Registrar nuevo usuario
-    
-    Args:
-        supabase: Cliente de Supabase
-        email: Email del usuario
-        password: Contraseña
-        
-    Returns:
-        dict: Datos del usuario si tiene éxito, None si falla
-    """
+    """Registrar nuevo usuario"""
     try:
         response = supabase.auth.sign_up({
             "email": email,
@@ -93,16 +71,14 @@ def register_user(supabase: Client, email: str, password: str) -> dict:
         })
         
         if response.user and response.session:
-            # Configurar el token de sesión
-            supabase.auth.set_session(response.session.access_token, response.session.refresh_token)
-            
-            # Crear perfil de inversor por defecto
+            # Crear perfil por defecto
             create_default_profile(supabase, response.user.id)
             
             return {
                 "id": response.user.id,
                 "email": response.user.email,
-                "access_token": response.session.access_token
+                "access_token": response.session.access_token,
+                "refresh_token": response.session.refresh_token
             }
         return None
     except Exception as e:
