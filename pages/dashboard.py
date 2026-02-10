@@ -6,7 +6,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 from utils.database import get_user_positions, calculate_portfolio_metrics
-from utils.market_data import get_current_price
+from utils.market_data import get_current_price, detect_currency, convert_to_usd
 import pandas as pd
 
 def show(supabase, user):
@@ -15,7 +15,6 @@ def show(supabase, user):
     st.markdown("# 📊 Dashboard")
     st.markdown("Vista general de tu portfolio de inversiones")
     
-    # Obtener posiciones del usuario
     positions = get_user_positions(supabase, user['id'])
     
     if not positions:
@@ -24,20 +23,19 @@ def show(supabase, user):
     
     # Obtener precios actuales
     with st.spinner("Actualizando precios..."):
-    current_prices = {}
-    for position in positions:
-        ticker = position['ticker']
-        price_info = get_current_price(ticker)
-        if price_info:
-            current_prices[ticker] = price_info
-        else:
-            # Fallback
-            currency = detect_currency(ticker)
-            current_prices[ticker] = {
-                'price': position['purchase_price'],
-                'currency': currency,
-                'price_usd': convert_to_usd(position['purchase_price'], currency)
-            }
+        current_prices = {}
+        for position in positions:
+            ticker = position['ticker']
+            price_info = get_current_price(ticker)
+            if price_info:
+                current_prices[ticker] = price_info
+            else:
+                currency = detect_currency(ticker)
+                current_prices[ticker] = {
+                    'price': position['purchase_price'],
+                    'currency': currency,
+                    'price_usd': convert_to_usd(position['purchase_price'], currency)
+                }
     
     # Calcular métricas
     metrics = calculate_portfolio_metrics(positions, current_prices)
@@ -79,6 +77,7 @@ def show_main_metrics(metrics):
         <div class="metric-card">
             <div class="metric-label">Capital Invertido</div>
             <div class="metric-value">${metrics['total_invested']:,.2f}</div>
+            <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">USD</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -87,6 +86,7 @@ def show_main_metrics(metrics):
         <div class="metric-card">
             <div class="metric-label">Valor Actual</div>
             <div class="metric-value">${metrics['total_value']:,.2f}</div>
+            <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">USD</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -116,11 +116,9 @@ def show_allocation_chart(positions_detail):
     
     st.markdown("### 📊 Distribución del Portfolio")
     
-    # Preparar datos
     tickers = [p['ticker'] for p in positions_detail]
     values = [p['current_value'] for p in positions_detail]
     
-    # Crear gráfico de pie
     fig = go.Figure(data=[go.Pie(
         labels=tickers,
         values=values,
@@ -131,7 +129,7 @@ def show_allocation_chart(positions_detail):
         ),
         textinfo='label+percent',
         textfont=dict(size=12, color='white'),
-        hovertemplate='<b>%{label}</b><br>Valor: $%{value:,.2f}<br>%{percent}<extra></extra>'
+        hovertemplate='<b>%{label}</b><br>Valor: $%{value:,.2f} USD<br>%{percent}<extra></extra>'
     )])
     
     fig.update_layout(
@@ -156,11 +154,9 @@ def show_performance_chart(positions_detail):
     
     st.markdown("### 📈 Rendimiento por Activo")
     
-    # Preparar datos
     df = pd.DataFrame(positions_detail)
     df = df.sort_values('pnl_pct', ascending=True)
     
-    # Crear gráfico de barras
     colors = ['#ef4444' if x < 0 else '#10b981' for x in df['pnl_pct']]
     
     fig = go.Figure(data=[go.Bar(
@@ -197,24 +193,20 @@ def show_positions_summary(positions_detail):
     
     st.markdown("### 💼 Resumen de Posiciones")
     
-    # Preparar DataFrame
     df = pd.DataFrame(positions_detail)
     
-    # Formatear columnas para mostrar
     display_df = pd.DataFrame({
-    'Ticker': df['ticker'],
-    'Moneda': df['currency'],
-    'Cantidad': df['quantity'].apply(lambda x: f"{x:.4f}"),
-    'Precio Compra': df.apply(lambda x: f"${x['purchase_price']:.2f} {x['currency']}", axis=1),
-    'Precio Actual': df.apply(lambda x: f"${x['current_price']:.2f} {x['currency']}", axis=1),
-    'Valor (USD)': df['current_value'].apply(lambda x: f"${x:,.2f}"),
-    'P&L': df['pnl'].apply(lambda x: f"${x:,.2f}"),
-    'P&L %': df['pnl_pct'].apply(lambda x: f"{x:.2f}%"),
-    'Distribución': df['allocation'].apply(lambda x: f"{x:.1f}%")
-})
+        'Ticker': df['ticker'],
+        'Moneda': df['currency'],
+        'Cantidad': df['quantity'].apply(lambda x: f"{x:.4f}"),
+        'Precio Compra': df.apply(lambda x: f"${x['purchase_price']:.2f} {x['currency']}", axis=1),
+        'Precio Actual': df.apply(lambda x: f"${x['current_price']:.2f} {x['currency']}", axis=1),
+        'Valor (USD)': df['current_value'].apply(lambda x: f"${x:,.2f}"),
+        'P&L': df['pnl'].apply(lambda x: f"${x:,.2f}"),
+        'P&L %': df['pnl_pct'].apply(lambda x: f"{x:.2f}%"),
+        'Distribución': df['allocation'].apply(lambda x: f"{x:.1f}%")
     })
     
-    # Aplicar estilo
     def color_pnl(val):
         """Colorear valores de P&L"""
         if isinstance(val, str) and '$' in val:
