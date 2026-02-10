@@ -165,14 +165,14 @@ def update_investor_profile(supabase: Client, user_id: str, investment_horizon: 
 
 def calculate_portfolio_metrics(positions: list, current_prices: dict) -> dict:
     """
-    Calcular métricas del portfolio
+    Calcular métricas del portfolio (todo en USD)
     
     Args:
         positions: Lista de posiciones
-        current_prices: Diccionario con precios actuales {ticker: price}
+        current_prices: Diccionario con info de precios {ticker: price_info}
         
     Returns:
-        dict: Métricas calculadas
+        dict: Métricas calculadas en USD
     """
     if not positions:
         return {
@@ -192,9 +192,25 @@ def calculate_portfolio_metrics(positions: list, current_prices: dict) -> dict:
         quantity = float(position['quantity'])
         purchase_price = float(position['purchase_price'])
         
-        invested = quantity * purchase_price
-        current_price = current_prices.get(ticker, purchase_price)
-        current_value = quantity * current_price
+        # Detectar moneda del ticker
+        currency = detect_currency(ticker)
+        
+        # Convertir precio de compra a USD
+        purchase_price_usd = convert_to_usd(purchase_price, currency)
+        
+        # Calcular inversión en USD
+        invested = quantity * purchase_price_usd
+        
+        # Obtener precio actual
+        price_info = current_prices.get(ticker)
+        if price_info:
+            current_price = price_info['price']
+            current_price_usd = price_info['price_usd']
+        else:
+            current_price = purchase_price
+            current_price_usd = purchase_price_usd
+        
+        current_value = quantity * current_price_usd
         pnl = current_value - invested
         pnl_pct = (pnl / invested * 100) if invested > 0 else 0
         
@@ -206,7 +222,10 @@ def calculate_portfolio_metrics(positions: list, current_prices: dict) -> dict:
             'ticker': ticker,
             'quantity': quantity,
             'purchase_price': purchase_price,
+            'purchase_price_usd': purchase_price_usd,
             'current_price': current_price,
+            'current_price_usd': current_price_usd,
+            'currency': currency,
             'invested': invested,
             'current_value': current_value,
             'pnl': pnl,
@@ -217,6 +236,7 @@ def calculate_portfolio_metrics(positions: list, current_prices: dict) -> dict:
     total_pnl = total_value - total_invested
     total_pnl_pct = (total_pnl / total_invested * 100) if total_invested > 0 else 0
     
+    # Calcular distribución
     for detail in positions_detail:
         detail['allocation'] = (detail['current_value'] / total_value * 100) if total_value > 0 else 0
     
