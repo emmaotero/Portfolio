@@ -54,14 +54,14 @@ def show_positions(supabase, user):
             with col1:
                 st.markdown("#### 📊 Información de la Posición")
                 st.markdown(f"**Cantidad:** {detail['quantity']:.4f}")
-                st.markdown(f"**Precio de Compra:** ${detail['purchase_price']:.2f}")
-                st.markdown(f"**Precio Actual:** ${detail['current_price']:.2f}")
+                st.markdown(f"**Precio de Compra:** ${detail['purchase_price']:.2f} {detail['currency']}")
+                st.markdown(f"**Precio Actual:** ${detail['current_price']:.2f} {detail['currency']}")
                 st.markdown(f"**Fecha de Compra:** {detail['purchase_date']}")
             
             with col2:
-                st.markdown("#### 💰 Rendimiento")
-                st.markdown(f"**Invertido:** ${detail['invested']:,.2f}")
-                st.markdown(f"**Valor Actual:** ${detail['current_value']:,.2f}")
+                st.markdown("#### 💰 Rendimiento (en USD)")
+                st.markdown(f"**Invertido:** ${detail['invested']:,.2f} USD")
+                st.markdown(f"**Valor Actual:** ${detail['current_value']:,.2f} USD")
                 
                 pnl_color = "green" if detail['pnl'] >= 0 else "red"
                 st.markdown(f"**P&L:** :{pnl_color}[${detail['pnl']:,.2f} ({detail['pnl_pct']:.2f}%)]")
