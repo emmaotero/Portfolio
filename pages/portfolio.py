@@ -121,3 +121,4 @@ def add_new_position(supabase, user):
                 placeholder="Ej: AAPL, MELI, YPFD.BA, AAPL.BA",
                 help="Acciones USA: AAPL | Acciones ARG: YPFD.BA | CEDEARs: AAPL.BA"
             ).upper()
+    with st.form("add_position_form", clear_on_submit=True):
