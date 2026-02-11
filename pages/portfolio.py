@@ -15,7 +15,6 @@ def show(supabase, user):
     st.markdown("# 💼 Mi Portfolio")
     st.markdown("Gestiona tus posiciones de inversión")
     
-    # Tabs para diferentes acciones
     tab1, tab2 = st.tabs(["📋 Ver Posiciones", "➕ Agregar Posición"])
     
     with tab1:
@@ -56,7 +55,7 @@ def show_positions(supabase, user):
     st.markdown("### Tus Posiciones")
     
     for detail in metrics['positions_detail']:
-        with st.expander(f"**{detail['ticker']}** - ${detail['current_value']:,.2f}", expanded=False):
+        with st.expander(f"**{detail['ticker']}** - ${detail['current_value']:,.2f} USD", expanded=False):
             col1, col2 = st.columns(2)
             
             with col1:
@@ -95,8 +94,8 @@ def add_new_position(supabase, user):
         with col1:
             ticker = st.text_input(
                 "Ticker *", 
-                placeholder="AAPL, GOOGL, MSFT...",
-                help="Símbolo del activo en el mercado"
+                placeholder="AAPL, MELI, COME.BA...",
+                help="Símbolo del activo. Usa .BA para Argentina (ej: COME.BA)"
             ).upper()
             
             quantity = st.number_input(
@@ -114,7 +113,7 @@ def add_new_position(supabase, user):
                 min_value=0.01,
                 value=100.0,
                 step=0.01,
-                help="Precio al que compraste cada unidad"
+                help="Precio al que compraste cada unidad (en moneda local)"
             )
             
             purchase_date = st.date_input(
@@ -129,24 +128,27 @@ def add_new_position(supabase, user):
         # Preview de la inversión
         if ticker and quantity > 0 and purchase_price > 0:
             total_invested = quantity * purchase_price
+            currency = detect_currency(ticker)
             
             st.markdown("#### 📊 Vista Previa")
-            col_prev1, col_prev2, col_prev3 = st.columns(3)
+            col_prev1, col_prev2, col_prev3, col_prev4 = st.columns(4)
             
             with col_prev1:
                 st.metric("Ticker", ticker)
             with col_prev2:
-                st.metric("Cantidad", f"{quantity:.4f}")
+                st.metric("Moneda", currency)
             with col_prev3:
-                st.metric("Inversión Total", f"${total_invested:,.2f}")
+                st.metric("Cantidad", f"{quantity:.4f}")
+            with col_prev4:
+                st.metric("Inversión Total", f"${total_invested:,.2f} {currency}")
             
             # Validar ticker con Yahoo Finance
             with st.spinner("Validando ticker..."):
-                current_price = get_current_price(ticker)
+                price_info = get_current_price(ticker)
                 stock_info = get_stock_info(ticker)
                 
-                if current_price is not None:
-                    st.success(f"✅ Ticker válido - **{stock_info['name']}** - Precio actual: ${current_price:.2f}")
+                if price_info:
+                    st.success(f"✅ Ticker válido - **{stock_info['name']}** - Precio actual: ${price_info['price']:.2f} {price_info['currency']}")
                 else:
                     st.warning("⚠️ No se pudo validar el ticker. Asegúrate de que sea correcto.")
         
@@ -165,7 +167,7 @@ def add_new_position(supabase, user):
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("❌ No se pudo agregar la posición. Verifica que ejecutaste el schema SQL en Supabase.")
+                        st.error("❌ No se pudo agregar la posición.")
                         
                 except Exception as e:
                     st.error(f"❌ Error: {str(e)}")
