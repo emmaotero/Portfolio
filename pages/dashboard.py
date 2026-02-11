@@ -215,7 +215,16 @@ def show_positions_summary(positions_detail, currency="USD"):
     
     st.markdown("### 💼 Resumen de Posiciones")
     
+    if not positions_detail:
+        st.info("No hay posiciones para mostrar")
+        return
+    
     df = pd.DataFrame(positions_detail)
+    
+    # Nombres de columnas dinámicos
+    col_valor = f'Valor ({currency})'
+    col_pnl = f'P&L ({currency})'
+    col_pnl_pct = 'P&L %'
     
     display_df = pd.DataFrame({
         'Ticker': df['ticker'],
@@ -223,42 +232,39 @@ def show_positions_summary(positions_detail, currency="USD"):
         'Cantidad': df['quantity'].apply(lambda x: f"{x:.4f}"),
         'Precio Compra': df.apply(lambda x: f"${x['purchase_price']:.2f} {x['currency']}", axis=1),
         'Precio Actual': df.apply(lambda x: f"${x['current_price']:.2f} {x['currency']}", axis=1),
-        f'Valor ({currency})': df['current_value'].apply(lambda x: f"${x:,.2f}"),
-        f'P&L ({currency})': df['pnl'].apply(lambda x: f"${x:,.2f}"),
-        'P&L %': df['pnl_pct'].apply(lambda x: f"{x:.2f}%"),
+        col_valor: df['current_value'].apply(lambda x: f"${x:,.2f}"),
+        col_pnl: df['pnl'].apply(lambda x: f"${x:,.2f}"),
+        col_pnl_pct: df['pnl_pct'].apply(lambda x: f"{x:.2f}%"),
         'Distribución': df['allocation'].apply(lambda x: f"{x:.1f}%")
     })
     
     def color_pnl(val):
         """Colorear valores de P&L"""
-        if isinstance(val, str) and '$' in val:
-            num = float(val.replace('$', '').replace(',', ''))
-            if num < 0:
-                return 'color: #ef4444'
-            elif num > 0:
-                return 'color: #10b981'
+        if isinstance(val, str):
+            if '$' in val:
+                try:
+                    num = float(val.replace('$', '').replace(',', ''))
+                    if num < 0:
+                        return 'color: #ef4444'
+                    elif num > 0:
+                        return 'color: #10b981'
+                except ValueError:
+                    pass
+            elif '%' in val:
+                try:
+                    num = float(val.replace('%', ''))
+                    if num < 0:
+                        return 'color: #ef4444'
+                    elif num > 0:
+                        return 'color: #10b981'
+                except ValueError:
+                    pass
         return ''
     
+    # Aplicar estilo
     styled_df = display_df.style.applymap(
         color_pnl, 
-        subset=[f'P&L ({currency})', 'P&L %']
-    )
-    
-    st.dataframe(styled_df, use_container_width=True, height=400)
-    
-    def color_pnl(val):
-        """Colorear valores de P&L"""
-        if isinstance(val, str) and '$' in val:
-            num = float(val.replace('$', '').replace(',', ''))
-            if num < 0:
-                return 'color: #ef4444'
-            elif num > 0:
-                return 'color: #10b981'
-        return ''
-    
-    styled_df = display_df.style.applymap(
-        color_pnl, 
-        subset=['P&L', 'P&L %']
+        subset=[col_pnl, col_pnl_pct]
     )
     
     st.dataframe(styled_df, use_container_width=True, height=400)
