@@ -86,9 +86,34 @@ def add_new_position(supabase, user):
     """Formulario para agregar nueva posición"""
     
     st.markdown("### Agregar Nueva Posición")
+    
+    # Banner informativo destacado
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%); 
+                padding: 1.5rem; 
+                border-radius: 12px; 
+                border-left: 4px solid #00d4aa; 
+                margin-bottom: 1.5rem;">
+        <h4 style="margin-top: 0; color: #00d4aa;">📋 Guía Rápida de Tickers</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div>
+                <strong style="color: #10b981;">🇺🇸 USA / ADRs:</strong><br>
+                <code>AAPL</code> <code>MSFT</code> <code>MELI</code> <code>GOOGL</code><br>
+                <small style="color: #9ca3af;">Sin sufijo</small>
+            </div>
+            <div>
+                <strong style="color: #f59e0b;">🇦🇷 Argentina / CEDEARs:</strong><br>
+                <code>YPFD.BA</code> <code>AAPL.BA</code> <code>MSFT.BA</code><br>
+                <small style="color: #9ca3af;">⚠️ Agregar <strong>.BA</strong> al final</small>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("Ingresa los detalles de tu nueva inversión")
     
     with st.form("add_position_form", clear_on_submit=True):
+
         col1, col2 = st.columns(2)
         
         with col1:
