@@ -221,53 +221,28 @@ def show_positions_summary(positions_detail, currency="USD"):
     
     df = pd.DataFrame(positions_detail)
     
-    # Nombres de columnas dinámicos
-    col_valor = f'Valor ({currency})'
-    col_pnl = f'P&L ({currency})'
-    col_pnl_pct = 'P&L %'
+    # Crear listas para cada columna con formato y color
+    data_rows = []
     
-    display_df = pd.DataFrame({
-        'Ticker': df['ticker'],
-        'Moneda Local': df['currency'],
-        'Cantidad': df['quantity'].apply(lambda x: f"{x:.4f}"),
-        'Precio Compra': df.apply(lambda x: f"${x['purchase_price']:.2f} {x['currency']}", axis=1),
-        'Precio Actual': df.apply(lambda x: f"${x['current_price']:.2f} {x['currency']}", axis=1),
-        col_valor: df['current_value'].apply(lambda x: f"${x:,.2f}"),
-        col_pnl: df['pnl'].apply(lambda x: f"${x:,.2f}"),
-        col_pnl_pct: df['pnl_pct'].apply(lambda x: f"{x:.2f}%"),
-        'Distribución': df['allocation'].apply(lambda x: f"{x:.1f}%")
-    })
+    for _, row in df.iterrows():
+        # Determinar color del P&L
+        pnl_color = "🟢" if row['pnl'] >= 0 else "🔴"
+        
+        data_rows.append({
+            'Ticker': row['ticker'],
+            'Moneda': row['currency'],
+            'Cantidad': f"{row['quantity']:.4f}",
+            'Precio Compra': f"${row['purchase_price']:.2f} {row['currency']}",
+            'Precio Actual': f"${row['current_price']:.2f} {row['currency']}",
+            f'Valor ({currency})': f"${row['current_value']:,.2f}",
+            f'P&L ({currency})': f"{pnl_color} ${row['pnl']:,.2f}",
+            'P&L %': f"{pnl_color} {row['pnl_pct']:+.2f}%",
+            'Dist.': f"{row['allocation']:.1f}%"
+        })
     
-    def color_pnl(val):
-        """Colorear valores de P&L"""
-        if isinstance(val, str):
-            if '$' in val:
-                try:
-                    num = float(val.replace('$', '').replace(',', ''))
-                    if num < 0:
-                        return 'color: #ef4444'
-                    elif num > 0:
-                        return 'color: #10b981'
-                except ValueError:
-                    pass
-            elif '%' in val:
-                try:
-                    num = float(val.replace('%', ''))
-                    if num < 0:
-                        return 'color: #ef4444'
-                    elif num > 0:
-                        return 'color: #10b981'
-                except ValueError:
-                    pass
-        return ''
+    display_df = pd.DataFrame(data_rows)
     
-    # Aplicar estilo
-    styled_df = display_df.style.applymap(
-        color_pnl, 
-        subset=[col_pnl, col_pnl_pct]
-    )
-    
-    st.dataframe(styled_df, use_container_width=True, height=400)
+    st.dataframe(display_df, use_container_width=True, height=400)
 
 def convert_metrics_to_ars(metrics: dict, usd_ars_rate: float) -> dict:
     """
