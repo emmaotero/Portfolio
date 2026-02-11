@@ -86,30 +86,6 @@ def add_new_position(supabase, user):
     """Formulario para agregar nueva posición"""
     
     st.markdown("### Agregar Nueva Posición")
-    
-    # Banner informativo destacado
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%); 
-                padding: 1.5rem; 
-                border-radius: 12px; 
-                border-left: 4px solid #00d4aa; 
-                margin-bottom: 1.5rem;">
-        <h4 style="margin-top: 0; color: #00d4aa;">📋 Guía Rápida de Tickers</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div>
-                <strong style="color: #10b981;">🇺🇸 USA / ADRs:</strong><br>
-                <code>AAPL</code> <code>MSFT</code> <code>MELI</code> <code>GOOGL</code><br>
-                <small style="color: #9ca3af;">Sin sufijo</small>
-            </div>
-            <div>
-                <strong style="color: #f59e0b;">🇦🇷 Argentina / CEDEARs:</strong><br>
-                <code>YPFD.BA</code> <code>AAPL.BA</code> <code>MSFT.BA</code><br>
-                <small style="color: #9ca3af;">⚠️ Agregar <strong>.BA</strong> al final</small>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
     st.markdown("Ingresa los detalles de tu nueva inversión")
     
     with st.form("add_position_form", clear_on_submit=True):
@@ -118,9 +94,34 @@ def add_new_position(supabase, user):
         with col1:
             ticker = st.text_input(
                 "Ticker *", 
-                placeholder="Ej: AAPL, MELI, YPFD.BA, AAPL.BA",
-                help="Acciones USA: AAPL | Acciones ARG: YPFD.BA | CEDEARs: AAPL.BA"
+                placeholder="AAPL, MELI, COME.BA...",
+                help="Símbolo del activo. Usa .BA para Argentina (ej: COME.BA)"
             ).upper()
+            
+            quantity = st.number_input(
+                "Cantidad *",
+                min_value=0.0001,
+                value=1.0,
+                step=0.01,
+                format="%.4f",
+                help="Cantidad de acciones o unidades"
+            )
+        
+        with col2:
+            purchase_price = st.number_input(
+                "Precio de Compra *",
+                min_value=0.01,
+                value=100.0,
+                step=0.01,
+                help="Precio al que compraste cada unidad (en moneda local)"
+            )
+            
+            purchase_date = st.date_input(
+                "Fecha de Compra *",
+                value=date.today(),
+                max_value=date.today(),
+                help="Fecha en que realizaste la compra"
+            )
         
         st.markdown("---")
         
@@ -171,4 +172,4 @@ def add_new_position(supabase, user):
                 except Exception as e:
                     st.error(f"❌ Error: {str(e)}")
             else:
-                st.error("❌ Por favor completa todos los campos requeridos")
+                st.error("❌ Por favor completa todos los campos requeridos")error("❌ Por favor completa todos los campos requeridos")
