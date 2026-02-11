@@ -172,4 +172,4 @@ def add_new_position(supabase, user):
                 except Exception as e:
                     st.error(f"❌ Error: {str(e)}")
             else:
-                st.error("❌ Por favor completa todos los campos requeridos")error("❌ Por favor completa todos los campos requeridos")
+                st.error("❌ Por favor completa todos los campos requeridos")
