@@ -121,4 +121,54 @@ def add_new_position(supabase, user):
                 placeholder="Ej: AAPL, MELI, YPFD.BA, AAPL.BA",
                 help="Acciones USA: AAPL | Acciones ARG: YPFD.BA | CEDEARs: AAPL.BA"
             ).upper()
-    with st.form("add_position_form", clear_on_submit=True):
+        
+        st.markdown("---")
+        
+        # Preview de la inversión
+        if ticker and quantity > 0 and purchase_price > 0:
+            total_invested = quantity * purchase_price
+            currency = detect_currency(ticker)
+            
+            st.markdown("#### 📊 Vista Previa")
+            col_prev1, col_prev2, col_prev3, col_prev4 = st.columns(4)
+            
+            with col_prev1:
+                st.metric("Ticker", ticker)
+            with col_prev2:
+                st.metric("Moneda", currency)
+            with col_prev3:
+                st.metric("Cantidad", f"{quantity:.4f}")
+            with col_prev4:
+                st.metric("Inversión Total", f"${total_invested:,.2f} {currency}")
+            
+            # Validar ticker con Yahoo Finance
+            with st.spinner("Validando ticker..."):
+                price_info = get_current_price(ticker)
+                stock_info = get_stock_info(ticker)
+                
+                if price_info:
+                    st.success(f"✅ Ticker válido - **{stock_info['name']}** - Precio actual: ${price_info['price']:.2f} {price_info['currency']}")
+                else:
+                    st.warning("⚠️ No se pudo validar el ticker. Asegúrate de que sea correcto.")
+        
+        submit = st.form_submit_button("➕ Agregar Posición", use_container_width=True, type="primary")
+        
+        if submit:
+            if ticker and quantity > 0 and purchase_price > 0:
+                try:
+                    result = add_position(supabase, user['id'], ticker, quantity, 
+                                  purchase_price, str(purchase_date))
+                    
+                    if result:
+                        st.success(f"✅ Posición {ticker} agregada correctamente!")
+                        st.balloons()
+                        import time
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("❌ No se pudo agregar la posición.")
+                        
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+            else:
+                st.error("❌ Por favor completa todos los campos requeridos")
