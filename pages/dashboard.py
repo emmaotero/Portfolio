@@ -6,7 +6,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 from utils.database import get_user_positions, calculate_portfolio_metrics
-from utils.market_data import get_current_price, detect_currency, convert_to_usd
+from utils.market_data import get_current_price, detect_currency, convert_to_usd, get_usd_ars_rate
 import pandas as pd
 
 def show(supabase, user):
@@ -54,7 +54,6 @@ def show(supabase, user):
     metrics = calculate_portfolio_metrics(positions, current_prices)
     
     # Convertir a ARS si es necesario
-    from utils.market_data import get_usd_ars_rate
     usd_ars = get_usd_ars_rate()
     
     if currency_display == "ARS":
@@ -87,10 +86,30 @@ def show_empty_state():
     Aún no tienes posiciones en tu portfolio. Ve a la sección **Mi Portfolio** para agregar tu primera inversión.
     """)
 
+def convert_metrics_to_ars(metrics: dict, usd_ars_rate: float) -> dict:
+    """Convertir todas las métricas de USD a ARS"""
+    converted = metrics.copy()
+    
+    converted['total_invested'] = metrics['total_invested'] * usd_ars_rate
+    converted['total_value'] = metrics['total_value'] * usd_ars_rate
+    converted['total_pnl'] = metrics['total_pnl'] * usd_ars_rate
+    
+    converted_details = []
+    for detail in metrics['positions_detail']:
+        converted_detail = detail.copy()
+        converted_detail['invested'] = detail['invested'] * usd_ars_rate
+        converted_detail['current_value'] = detail['current_value'] * usd_ars_rate
+        converted_detail['pnl'] = detail['pnl'] * usd_ars_rate
+        converted_details.append(converted_detail)
+    
+    converted['positions_detail'] = converted_details
+    
+    return converted
+
 def show_main_metrics(metrics, currency="USD"):
     """Mostrar métricas principales del portfolio"""
     
-    currency_symbol = "$" if currency == "USD" else "$"
+    currency_symbol = "$"
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -132,7 +151,7 @@ def show_main_metrics(metrics, currency="USD"):
             <div class="metric-value">{num_positions}</div>
         </div>
         """, unsafe_allow_html=True)
-        
+
 def show_allocation_chart(positions_detail):
     """Mostrar gráfico de distribución del portfolio"""
     
@@ -226,7 +245,7 @@ def show_positions_summary(positions_detail, currency="USD"):
     
     for _, row in df.iterrows():
         # Determinar color del P&L
-        pnl_color = "🟢" if row['pnl'] >= 0 else "🔴"
+        pnl_indicator = "🟢" if row['pnl'] >= 0 else "🔴"
         
         data_rows.append({
             'Ticker': row['ticker'],
@@ -235,44 +254,11 @@ def show_positions_summary(positions_detail, currency="USD"):
             'Precio Compra': f"${row['purchase_price']:.2f} {row['currency']}",
             'Precio Actual': f"${row['current_price']:.2f} {row['currency']}",
             f'Valor ({currency})': f"${row['current_value']:,.2f}",
-            f'P&L ({currency})': f"{pnl_color} ${row['pnl']:,.2f}",
-            'P&L %': f"{pnl_color} {row['pnl_pct']:+.2f}%",
+            f'P&L ({currency})': f"{pnl_indicator} ${row['pnl']:,.2f}",
+            'P&L %': f"{pnl_indicator} {row['pnl_pct']:+.2f}%",
             'Dist.': f"{row['allocation']:.1f}%"
         })
     
     display_df = pd.DataFrame(data_rows)
     
     st.dataframe(display_df, use_container_width=True, height=400)
-
-def convert_metrics_to_ars(metrics: dict, usd_ars_rate: float) -> dict:
-    """
-    Convertir todas las métricas de USD a ARS
-    
-    Args:
-        metrics: Diccionario con métricas en USD
-        usd_ars_rate: Tasa de cambio USD/ARS
-        
-    Returns:
-        dict: Métricas convertidas a ARS
-    """
-    converted = metrics.copy()
-    
-    # Convertir totales
-    converted['total_invested'] = metrics['total_invested'] * usd_ars_rate
-    converted['total_value'] = metrics['total_value'] * usd_ars_rate
-    converted['total_pnl'] = metrics['total_pnl'] * usd_ars_rate
-    # El porcentaje se mantiene igual
-    
-    # Convertir detalles de cada posición
-    converted_details = []
-    for detail in metrics['positions_detail']:
-        converted_detail = detail.copy()
-        converted_detail['invested'] = detail['invested'] * usd_ars_rate
-        converted_detail['current_value'] = detail['current_value'] * usd_ars_rate
-        converted_detail['pnl'] = detail['pnl'] * usd_ars_rate
-        # pnl_pct y allocation se mantienen igual
-        converted_details.append(converted_detail)
-    
-    converted['positions_detail'] = converted_details
-    
-    return converted
