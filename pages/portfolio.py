@@ -5,7 +5,7 @@ Portfolio - Gestión de posiciones
 import streamlit as st
 from utils.database import (get_user_positions, add_position, update_position, 
                             delete_position, calculate_portfolio_metrics)
-from utils.market_data import get_current_price, get_stock_info
+from utils.market_data import get_current_price, get_stock_info, detect_currency, convert_to_usd
 from datetime import datetime, date
 import pandas as pd
 
