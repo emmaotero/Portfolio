@@ -88,88 +88,69 @@ def add_new_position(supabase, user):
     st.markdown("### Agregar Nueva Posición")
     st.markdown("Ingresa los detalles de tu nueva inversión")
     
+    # Tabs con ejemplos por tipo
+    with st.expander("📚 Ejemplos de Tickers por Categoría", expanded=False):
+        tab1, tab2, tab3 = st.tabs(["🇺🇸 USA", "🇦🇷 Argentina", "🌎 CEDEARs"])
+        
+        with tab1:
+            st.markdown("""
+            ### Acciones USA y ADRs
+            
+            **Tech:**
+            - `AAPL` - Apple
+            - `MSFT` - Microsoft
+            - `GOOGL` - Google
+            - `TSLA` - Tesla
+            - `NVDA` - Nvidia
+            
+            **ADRs Latinoamericanos:**
+            - `MELI` - MercadoLibre
+            - `GLOB` - Globant
+            - `DESP` - Despegar
+            
+            ✅ **No llevan sufijo**
+            """)
+        
+        with tab2:
+            st.markdown("""
+            ### Acciones Argentinas
+            
+            **Energía:**
+            - `YPFD.BA` - YPF
+            - `PAMP.BA` - Pampa Energía
+            - `TGSU2.BA` - TGS
+            
+            **Bancos:**
+            - `GGAL.BA` - Grupo Galicia
+            - `BMA.BA` - Banco Macro
+            - `SUPV.BA` - Supervielle
+            
+            **Otras:**
+            - `TXAR.BA` - Ternium
+            - `COME.BA` - Comercial del Plata
+            - `CRES.BA` - Cresud
+            
+            ⚠️ **Siempre agregar `.BA`**
+            """)
+        
+        with tab3:
+            st.markdown("""
+            ### CEDEARs (Acciones USA en Argentina)
+            
+            **Tech:**
+            - `AAPL.BA` - Apple CEDEAR
+            - `MSFT.BA` - Microsoft CEDEAR
+            - `GOOGL.BA` - Google CEDEAR
+            - `TSLA.BA` - Tesla CEDEAR
+            
+            **Otras:**
+            - `KO.BA` - Coca-Cola CEDEAR
+            - `DIS.BA` - Disney CEDEAR
+            - `NFLX.BA` - Netflix CEDEAR
+            
+            ⚠️ **CEDEARs también llevan `.BA`**
+            
+            💡 **Diferencia:** Un CEDEAR es una acción USA que cotiza en Argentina en pesos.
+            """)
+    
     with st.form("add_position_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            ticker = st.text_input(
-                "Ticker *", 
-                placeholder="AAPL, MELI, COME.BA...",
-                help="Símbolo del activo. Usa .BA para Argentina (ej: COME.BA)"
-            ).upper()
-            
-            quantity = st.number_input(
-                "Cantidad *",
-                min_value=0.0001,
-                value=1.0,
-                step=0.01,
-                format="%.4f",
-                help="Cantidad de acciones o unidades"
-            )
-        
-        with col2:
-            purchase_price = st.number_input(
-                "Precio de Compra *",
-                min_value=0.01,
-                value=100.0,
-                step=0.01,
-                help="Precio al que compraste cada unidad (en moneda local)"
-            )
-            
-            purchase_date = st.date_input(
-                "Fecha de Compra *",
-                value=date.today(),
-                max_value=date.today(),
-                help="Fecha en que realizaste la compra"
-            )
-        
-        st.markdown("---")
-        
-        # Preview de la inversión
-        if ticker and quantity > 0 and purchase_price > 0:
-            total_invested = quantity * purchase_price
-            currency = detect_currency(ticker)
-            
-            st.markdown("#### 📊 Vista Previa")
-            col_prev1, col_prev2, col_prev3, col_prev4 = st.columns(4)
-            
-            with col_prev1:
-                st.metric("Ticker", ticker)
-            with col_prev2:
-                st.metric("Moneda", currency)
-            with col_prev3:
-                st.metric("Cantidad", f"{quantity:.4f}")
-            with col_prev4:
-                st.metric("Inversión Total", f"${total_invested:,.2f} {currency}")
-            
-            # Validar ticker con Yahoo Finance
-            with st.spinner("Validando ticker..."):
-                price_info = get_current_price(ticker)
-                stock_info = get_stock_info(ticker)
-                
-                if price_info:
-                    st.success(f"✅ Ticker válido - **{stock_info['name']}** - Precio actual: ${price_info['price']:.2f} {price_info['currency']}")
-                else:
-                    st.warning("⚠️ No se pudo validar el ticker. Asegúrate de que sea correcto.")
-        
-        submit = st.form_submit_button("➕ Agregar Posición", use_container_width=True, type="primary")
-        
-        if submit:
-            if ticker and quantity > 0 and purchase_price > 0:
-                try:
-                    result = add_position(supabase, user['id'], ticker, quantity, 
-                                  purchase_price, str(purchase_date))
-                    
-                    if result:
-                        st.success(f"✅ Posición {ticker} agregada correctamente!")
-                        st.balloons()
-                        import time
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.error("❌ No se pudo agregar la posición.")
-                        
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
-            else:
-                st.error("❌ Por favor completa todos los campos requeridos")
